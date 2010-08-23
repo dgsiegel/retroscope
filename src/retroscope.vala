@@ -17,11 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/*
- * compile with:
- * valac --pkg gtk+-2.0 --pkg gdk-x11-2.0 --pkg gstreamer-0.10 --pkg gstreamer-interfaces-0.10 retroscope.vala
- */
-
+using GLib;
 using Gtk;
 using Gst;
 using Clutter;
@@ -60,7 +56,7 @@ public class Retroscope : Gtk.Window
     var clutter_builder = new Clutter.Script ();
     try
     {
-      clutter_builder.load_from_file (GLib.Path.build_filename ("../data", "viewport.json"));
+      clutter_builder.load_from_file (GLib.Path.build_filename (Config.PACKAGE_DATADIR, "viewport.json"));
     }
     catch (Error err)
     {
@@ -87,7 +83,7 @@ this.countdown_layer.reactive = true;
     this.set_size_request (WIDTH, HEIGHT);
     this.set_title ("Retroscope");
     this.set_icon_name ("forward");
-    this.position = WindowPosition.CENTER;
+    this.set_position (WindowPosition.CENTER);
     this.destroy.connect (this.quit);
     this.key_press_event.connect (this.on_key_press_event);
 
