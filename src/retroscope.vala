@@ -110,7 +110,7 @@ public class Retroscope : Gtk.Window
     this.set_title ("Retroscope");
     this.set_icon_name ("forward");
     this.set_position (WindowPosition.CENTER);
-    this.destroy.connect (this.quit);
+    this.destroy.connect (this.on_quit);
     this.key_press_event.connect (this.on_key_press_event);
 
     var vbox = new VBox (false, 0);
@@ -124,14 +124,6 @@ public class Retroscope : Gtk.Window
 
     this.countdown_layer.animate (Clutter.AnimationMode.LINEAR, 1000, "opacity", 255);
     this.play_button.animate (Clutter.AnimationMode.LINEAR, 2000, "opacity", 255);
-  }
-
-  public void on_stage_resize (Clutter.Actor           actor,
-                               Clutter.ActorBox        box,
-                               Clutter.AllocationFlags flags)
-  {
-    this.viewport_layout.set_size (this.stage.width, this.stage.height);
-    this.background_layer.set_size (this.stage.width, this.stage.height);
   }
 
   private void create_pipeline ()
@@ -173,6 +165,59 @@ public class Retroscope : Gtk.Window
       this.unfullscreen ();
   }
 
+  private void set_time_from_delay ()
+  {
+    this.countdown_layer.text =
+      string.join (":", "%02d".printf (this.delay / 3600), "%02d".printf (this.delay % 3600 / 60),
+                   "%02d".printf (this.delay % 60));
+  }
+
+  private void do_countdown ()
+  {
+    this.set_time_from_delay ();
+    this.delay--;
+    if (this.delay < 0)
+    {
+      this.countdown_layer.animate (Clutter.AnimationMode.LINEAR, 1000, "opacity", 0);
+      this.video_preview.animate (Clutter.AnimationMode.LINEAR, 1000, "opacity", 255);
+      return;
+    }
+
+    var anim = this.countdown_layer.animate (Clutter.AnimationMode.LINEAR, 1000, "opacity", 255);
+    Signal.connect_after (anim, "completed", (GLib.Callback) this.do_countdown, this);
+  }
+
+  private void play ()
+  {
+    this.queue.set_property ("min-threshold-time", (uint64) this.delay * 1000000000);
+    this.pipeline.set_state (State.PLAYING);
+
+    this.play_button.reactive = false;
+    this.play_button.animate (Clutter.AnimationMode.LINEAR, 1000, "opacity", 0);
+
+    foreach (Clutter.Texture t in this.arrows)
+    {
+      t.reactive = false;
+      t.animate (Clutter.AnimationMode.LINEAR, 1000, "opacity", 0);
+    }
+
+    this.do_countdown ();
+  }
+
+  private void on_quit ()
+  {
+    this.pipeline.set_state (State.NULL);
+    Gtk.main_quit ();
+  }
+
+  public void on_stage_resize (Clutter.Actor           actor,
+                               Clutter.ActorBox        box,
+                               Clutter.AllocationFlags flags)
+  {
+    this.viewport_layout.set_size (this.stage.width, this.stage.height);
+    this.background_layer.set_size (this.stage.width, this.stage.height);
+  }
+
   private bool on_key_press_event (Gdk.EventKey event)
   {
     var keyname = Gdk.keyval_name (event.keyval);
@@ -184,7 +229,7 @@ public class Retroscope : Gtk.Window
       if (this.is_fullscreen)
         this.toggle_fullscreen ();
       else
-        this.quit ();
+        this.on_quit ();
     return false;
   }
 
@@ -225,51 +270,6 @@ public class Retroscope : Gtk.Window
       this.delay = 0;
     this.set_time_from_delay ();
     return true;
-  }
-
-  private void set_time_from_delay ()
-  {
-    this.countdown_layer.text =
-      string.join (":", "%02d".printf (this.delay / 3600), "%02d".printf (this.delay % 3600 / 60),
-                   "%02d".printf (this.delay % 60));
-  }
-
-  private void do_countdown ()
-  {
-    this.set_time_from_delay ();
-    this.delay--;
-    if (this.delay < 0)
-    {
-      this.countdown_layer.animate (Clutter.AnimationMode.LINEAR, 1000, "opacity", 0);
-      this.video_preview.animate (Clutter.AnimationMode.LINEAR, 1000, "opacity", 255);
-      return;
-    }
-
-    var anim = this.countdown_layer.animate (Clutter.AnimationMode.LINEAR, 1000, "opacity", 255);
-    Signal.connect_after (anim, "completed", (GLib.Callback) this.do_countdown, this);
-  }
-
-  private void play ()
-  {
-    this.queue.set_property ("min-threshold-time", (uint64) this.delay * 1000000000);
-    this.pipeline.set_state (State.PLAYING);
-
-    this.play_button.reactive = false;
-    this.play_button.animate (Clutter.AnimationMode.LINEAR, 1000, "opacity", 0);
-
-    foreach (Clutter.Texture t in this.arrows)
-    {
-      t.reactive = false;
-      t.animate (Clutter.AnimationMode.LINEAR, 1000, "opacity", 0);
-    }
-
-    this.do_countdown ();
-  }
-
-  private void quit ()
-  {
-    this.pipeline.set_state (State.NULL);
-    Gtk.main_quit ();
   }
 
   public static int main (string[] args)
