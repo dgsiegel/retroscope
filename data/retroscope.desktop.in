@@ -1,0 +1,10 @@
+[Desktop Entry]
+_Name=Retroscope
+_X-GNOME-FullName=Retroscope
+_Comment=The Retroscope is a device that shows you what was happening in the past.
+Exec=retroscope
+Terminal=false
+Type=Application
+StartupNotify=true
+Icon=forward
+Categories=GNOME;AudioVideo;

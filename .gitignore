@@ -2,7 +2,6 @@
 *.la
 *.lo
 *.desktop
-*.desktop.in
 *.gmo
 *.omf
 Makefile
