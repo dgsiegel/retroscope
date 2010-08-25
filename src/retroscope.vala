@@ -120,6 +120,9 @@ public class Retroscope : Gtk.Window
     this.show_all ();
     this.stage.show_all ();
 
+    if (this.is_fullscreen)
+      this.fullscreen ();
+
     this.create_pipeline ();
 
     this.countdown_layer.animate (Clutter.AnimationMode.LINEAR, 1000, "opacity", 255);
@@ -306,8 +309,6 @@ public class Retroscope : Gtk.Window
     message ("Delay set to %d seconds", delay);
 
     var retroscope = new Retroscope ();
-    if (is_fullscreen)
-      retroscope.toggle_fullscreen ();
 
     Gtk.main ();
 
