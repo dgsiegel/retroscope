@@ -27,6 +27,9 @@ using GtkClutter;
 const int WIDTH  = 640;
 const int HEIGHT = 480;
 
+const int BUTTON_NORMAL = 90;
+const int BUTTON_ACTIVE = 255;
+
 public class Retroscope : Gtk.Window
 {
   private Element                  pipeline;
@@ -36,6 +39,7 @@ public class Retroscope : Gtk.Window
   private static int               minutes;
   private static int               seconds;
   private static int               delay;
+  private static int               selected_button;
   private Clutter.Stage            stage;
   private Clutter.Box              viewport_layout;
   private Clutter.BinLayout        viewport_layout_manager;
@@ -43,7 +47,17 @@ public class Retroscope : Gtk.Window
   private static Clutter.Texture   video_preview;
   private static Clutter.Text      countdown_layer;
   private static Clutter.Texture[] arrows;
-  private static Clutter.Texture   play_button;
+
+  private enum Buttons
+  {
+    PLAY,
+    HOUR_UP,
+    HOUR_DOWN,
+    MIN_UP,
+    MIN_DOWN,
+    SEC_UP,
+    SEC_DOWN
+  }
 
   const OptionEntry[] options = {
     {"fullscreen", 'f',    0,   OptionArg.NONE, ref is_fullscreen, "Start in fullscreen",    null          },
@@ -76,8 +90,8 @@ public class Retroscope : Gtk.Window
     this.viewport_layout_manager = (Clutter.BinLayout)clutter_builder.get_object ("viewport_layout_manager");
     this.countdown_layer         = (Clutter.Text)clutter_builder.get_object ("countdown_layer");
     this.background_layer        = (Clutter.Rectangle)clutter_builder.get_object ("background");
-    this.play_button             = (Clutter.Texture)clutter_builder.get_object ("play");
     this.arrows                  = {
+      (Clutter.Texture)clutter_builder.get_object ("play"),
       (Clutter.Texture)clutter_builder.get_object ("arrow_hour_up"),
       (Clutter.Texture)clutter_builder.get_object ("arrow_hour_down"),
       (Clutter.Texture)clutter_builder.get_object ("arrow_min_up"),
@@ -93,13 +107,15 @@ public class Retroscope : Gtk.Window
 
     try
     {
-      this.play_button.set_from_file (GLib.Path.build_filename (Config.PACKAGE_DATADIR, "pixmaps", "play.svg"));
-      this.play_button.button_release_event.connect (this.on_button_release_event);
       foreach (Clutter.Texture t in this.arrows)
       {
         t.set_from_file (GLib.Path.build_filename (Config.PACKAGE_DATADIR, "pixmaps", "arrow.svg"));
         t.button_release_event.connect (this.on_button_release_event);
+        t.animate (Clutter.AnimationMode.LINEAR, 2000, "opacity", BUTTON_NORMAL);
       }
+      this.arrows[this.Buttons.PLAY].set_from_file (GLib.Path.build_filename (Config.PACKAGE_DATADIR, "pixmaps", "play.svg"));
+      this.arrows[this.Buttons.PLAY].animate (Clutter.AnimationMode.LINEAR, 2000, "opacity", BUTTON_ACTIVE);
+      this.selected_button = this.Buttons.PLAY;
     }
     catch (Error err)
     {
@@ -126,7 +142,6 @@ public class Retroscope : Gtk.Window
     this.create_pipeline ();
 
     this.countdown_layer.animate (Clutter.AnimationMode.LINEAR, 1000, "opacity", 255);
-    this.play_button.animate (Clutter.AnimationMode.LINEAR, 2000, "opacity", 255);
   }
 
   private void create_pipeline ()
@@ -170,6 +185,8 @@ public class Retroscope : Gtk.Window
 
   private void set_time_from_delay ()
   {
+    if (this.delay < 0)
+      this.delay = 0;
     this.countdown_layer.text =
       string.join (":", "%02d".printf (this.delay / 3600), "%02d".printf (this.delay % 3600 / 60),
                    "%02d".printf (this.delay % 60));
@@ -195,9 +212,6 @@ public class Retroscope : Gtk.Window
     this.queue.set_property ("min-threshold-time", (uint64) this.delay * 1000000000);
     this.pipeline.set_state (State.PLAYING);
 
-    this.play_button.reactive = false;
-    this.play_button.animate (Clutter.AnimationMode.LINEAR, 1000, "opacity", 0);
-
     foreach (Clutter.Texture t in this.arrows)
     {
       t.reactive = false;
@@ -205,6 +219,24 @@ public class Retroscope : Gtk.Window
     }
 
     this.do_countdown ();
+  }
+
+  private void highlight_next_button ()
+  {
+    this.arrows[this.selected_button].animate (Clutter.AnimationMode.LINEAR, 500, "opacity", BUTTON_NORMAL);
+    this.selected_button++;
+    if (this.selected_button >= this.arrows.length)
+      this.selected_button = this.Buttons.PLAY;
+    this.arrows[this.selected_button].animate (Clutter.AnimationMode.LINEAR, 500, "opacity", BUTTON_ACTIVE);
+  }
+
+  private void highlight_button (int id)
+  {
+    this.arrows[this.selected_button].animate (Clutter.AnimationMode.LINEAR, 500, "opacity", BUTTON_NORMAL);
+    this.selected_button = id;
+    if (id >= this.arrows.length || id < 0)
+      this.selected_button = this.Buttons.PLAY;
+    this.arrows[this.selected_button].animate (Clutter.AnimationMode.LINEAR, 500, "opacity", BUTTON_ACTIVE);
   }
 
   private void on_quit ()
@@ -225,14 +257,120 @@ public class Retroscope : Gtk.Window
   {
     var keyname = Gdk.keyval_name (event.keyval);
 
-    if (keyname == "F11")
+    switch (keyname)
+    {
+    case "F11":
       this.toggle_fullscreen ();
-    else
-    if (keyname == "Escape")
+      break;
+    case "Escape":
       if (this.is_fullscreen)
         this.toggle_fullscreen ();
       else
         this.on_quit ();
+      break;
+    case "Return":
+      switch (this.selected_button)
+      {
+        case this.Buttons.HOUR_UP:
+          this.delay += 3600;
+          this.set_time_from_delay ();
+          break;
+        case this.Buttons.HOUR_DOWN:
+          this.delay -= 3600;
+          this.set_time_from_delay ();
+          break;
+        case this.Buttons.MIN_UP:
+          this.delay += 60;
+          this.set_time_from_delay ();
+          break;
+        case this.Buttons.MIN_DOWN:
+          this.delay -= 60;
+          this.set_time_from_delay ();
+          break;
+        case this.Buttons.SEC_UP:
+          this.delay++;
+          this.set_time_from_delay ();
+          break;
+        case this.Buttons.SEC_DOWN:
+          this.delay--;
+          this.set_time_from_delay ();
+          break;
+        case this.Buttons.PLAY:
+          this.play ();
+          break;
+      }
+      break;
+    case "Tab":
+      if (selected_button == this.Buttons.PLAY)
+        highlight_next_button ();
+      else
+        highlight_button (this.selected_button + 2);
+      break;
+    case "Left":
+      if (selected_button == this.Buttons.PLAY)
+        highlight_button (this.Buttons.SEC_UP);
+      else
+        if (this.selected_button % 2 == 0)
+          highlight_button (this.selected_button - 3);
+        else
+          highlight_button (this.selected_button - 2);
+      break;
+    case "Right":
+      if (selected_button == this.Buttons.PLAY)
+        highlight_button (this.Buttons.HOUR_UP);
+      else
+        if (this.selected_button % 2 == 0)
+          highlight_button (this.selected_button + 1);
+        else
+          highlight_button (this.selected_button + 2);
+      break;
+    case "Up":
+    case "plus":
+      if (this.selected_button != this.Buttons.PLAY)
+      {
+        if (this.selected_button == this.Buttons.HOUR_UP || this.selected_button == this.Buttons.HOUR_DOWN)
+        {
+          highlight_button (this.Buttons.HOUR_UP);
+          this.delay += 3600;
+        }
+        else if (this.selected_button == this.Buttons.MIN_UP || this.selected_button == this.Buttons.MIN_DOWN)
+        {
+          highlight_button (this.Buttons.MIN_UP);
+          this.delay += 60;
+        }
+        else
+        {
+          highlight_button (this.Buttons.SEC_UP);
+          this.delay++;
+        }
+        this.set_time_from_delay ();
+      }
+      break;
+    case "Down":
+    case "minus":
+      if (this.selected_button != 0)
+      {
+        if (this.selected_button == this.Buttons.HOUR_UP || this.selected_button == this.Buttons.HOUR_DOWN)
+        {
+          highlight_button (this.Buttons.HOUR_DOWN);
+          this.delay -= 3600;
+        }
+        else if (this.selected_button == this.Buttons.MIN_UP || this.selected_button == this.Buttons.MIN_DOWN)
+        {
+          highlight_button (this.Buttons.MIN_DOWN);
+          this.delay -= 60;
+        }
+        else
+        {
+          highlight_button (this.Buttons.SEC_DOWN);
+          this.delay--;
+        }
+        this.set_time_from_delay ();
+      }
+      break;
+    default:
+      break;
+    }
     return false;
   }
 
@@ -269,8 +407,6 @@ public class Retroscope : Gtk.Window
         return true;
     }
 
-    if (this.delay < 0)
-      this.delay = 0;
     this.set_time_from_delay ();
     return true;
   }
@@ -308,7 +444,7 @@ public class Retroscope : Gtk.Window
 
     message ("Delay set to %d seconds", delay);
 
-    var retroscope = new Retroscope ();
+    new Retroscope ();
 
     Gtk.main ();
 
