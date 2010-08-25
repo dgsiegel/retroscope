@@ -24,29 +24,32 @@ using Clutter;
 using ClutterGst;
 using GtkClutter;
 
-const bool USE_FFMPEG_ENCODING = true;
-
-const int WIDTH = 640;
+const int WIDTH  = 640;
 const int HEIGHT = 480;
 
 public class Retroscope : Gtk.Window
 {
-  private Element     pipeline;
-  private static bool is_fullscreen;
-  private static int  minutes;
-  private static int  seconds;
-  private static int  delay;
-  private Clutter.Stage stage;
-  private Clutter.Box viewport_layout;
-  private Clutter.BinLayout viewport_layout_manager;
-  private Clutter.Rectangle background_layer;
-  private static Clutter.Texture video_preview;
-  private static Clutter.Text countdown_layer;
+  private Element                  pipeline;
+  private Element                  queue;
+  private static bool              is_fullscreen;
+  private static int               hours;
+  private static int               minutes;
+  private static int               seconds;
+  private static int               delay;
+  private Clutter.Stage            stage;
+  private Clutter.Box              viewport_layout;
+  private Clutter.BinLayout        viewport_layout_manager;
+  private Clutter.Rectangle        background_layer;
+  private static Clutter.Texture   video_preview;
+  private static Clutter.Text      countdown_layer;
+  private static Clutter.Texture[] arrows;
+  private static Clutter.Texture   play_button;
 
   const OptionEntry[] options = {
-    {"fullscreen", 'f', 0, OptionArg.NONE, ref is_fullscreen, "Start in fullscreen", null     },
-    {"minutes",    'm', 0, OptionArg.INT,  ref minutes,       "Delay in minutes",    "MINUTES"},
-    {"seconds",    's', 0, OptionArg.INT,  ref seconds,       "Delay in seconds",    "SECONDS"},
+    {"fullscreen", 'f',    0,   OptionArg.NONE, ref is_fullscreen, "Start in fullscreen",    null          },
+    {"hours",      0,      0,   OptionArg.INT,  ref hours,         "Delay in hours",         "HOURS"       },
+    {"minutes",    'm',    0,   OptionArg.INT,  ref minutes,       "Delay in minutes",       "MINUTES"     },
+    {"seconds",    's',    0,   OptionArg.INT,  ref seconds,       "Delay in seconds",       "SECONDS"     },
     {null}
   };
 
@@ -54,6 +57,7 @@ public class Retroscope : Gtk.Window
   private Retroscope ()
   {
     var clutter_builder = new Clutter.Script ();
+
     try
     {
       clutter_builder.load_from_file (GLib.Path.build_filename (Config.PACKAGE_DATADIR, "viewport.json"));
@@ -63,22 +67,47 @@ public class Retroscope : Gtk.Window
       error ("Error: %s", err.message);
     }
 
-    var viewport = new GtkClutter.Embed();
-    this.stage = viewport.get_stage().get_stage();
+    var viewport = new GtkClutter.Embed ();
+    this.stage = viewport.get_stage ().get_stage ();
     this.stage.allocation_changed.connect (on_stage_resize);
 
-    this.video_preview           = (Clutter.Texture) clutter_builder.get_object ("video_preview");
-    this.viewport_layout         = (Clutter.Box) clutter_builder.get_object ("viewport_layout");
-    this.viewport_layout_manager = (Clutter.BinLayout) clutter_builder.get_object ("viewport_layout_manager");
-    this.countdown_layer         = (Clutter.Text) clutter_builder.get_object ("countdown_layer");
-    this.background_layer        = (Clutter.Rectangle) clutter_builder.get_object ("background");
+    this.video_preview           = (Clutter.Texture)clutter_builder.get_object ("video_preview");
+    this.viewport_layout         = (Clutter.Box)clutter_builder.get_object ("viewport_layout");
+    this.viewport_layout_manager = (Clutter.BinLayout)clutter_builder.get_object ("viewport_layout_manager");
+    this.countdown_layer         = (Clutter.Text)clutter_builder.get_object ("countdown_layer");
+    this.background_layer        = (Clutter.Rectangle)clutter_builder.get_object ("background");
+    this.play_button             = (Clutter.Texture)clutter_builder.get_object ("play");
+    this.arrows                  = {
+      (Clutter.Texture)clutter_builder.get_object ("arrow_hour_up"),
+      (Clutter.Texture)clutter_builder.get_object ("arrow_hour_down"),
+      (Clutter.Texture)clutter_builder.get_object ("arrow_min_up"),
+      (Clutter.Texture)clutter_builder.get_object ("arrow_min_down"),
+      (Clutter.Texture)clutter_builder.get_object ("arrow_sec_up"),
+      (Clutter.Texture)clutter_builder.get_object ("arrow_sec_down")
+    };
 
-this.countdown_layer.reactive = true;
     video_preview.keep_aspect_ratio = true;
     video_preview.request_mode      = Clutter.RequestMode.HEIGHT_FOR_WIDTH;
     this.stage.add_actor (this.background_layer);
     this.stage.add_actor (this.viewport_layout);
     viewport_layout.set_layout_manager (this.viewport_layout_manager);
+    this.set_time_from_delay ();
+
+
+    try
+    {
+      this.play_button.set_from_file (GLib.Path.build_filename (Config.PACKAGE_DATADIR, "pixmaps", "play.svg"));
+      this.play_button.button_release_event.connect (this.on_button_release_event);
+      foreach (Clutter.Texture t in this.arrows)
+      {
+        t.set_from_file (GLib.Path.build_filename (Config.PACKAGE_DATADIR, "pixmaps", "arrow.svg"));
+        t.button_release_event.connect (this.on_button_release_event);
+      }
+    }
+    catch (Error err)
+    {
+      error ("Error: %s", err.message);
+    }
 
     this.set_size_request (WIDTH, HEIGHT);
     this.set_title ("Retroscope");
@@ -92,11 +121,13 @@ this.countdown_layer.reactive = true;
 
     this.add (vbox);
     this.show_all ();
-    this.stage.show_all();
+    this.stage.show_all ();
 
     this.create_pipeline ();
-  }
 
+    this.countdown_layer.animate (Clutter.AnimationMode.LINEAR, 1000, "opacity", 255);
+    this.play_button.animate (Clutter.AnimationMode.LINEAR, 2000, "opacity", 255);
+  }
 
   public void on_stage_resize (Clutter.Actor           actor,
                                Clutter.ActorBox        box,
@@ -109,40 +140,31 @@ this.countdown_layer.reactive = true;
   private void create_pipeline ()
   {
     this.pipeline = ElementFactory.make ("camerabin", "video");
-    var queue   = ElementFactory.make ("queue", "queue");
-    queue.set_property ("min-threshold-time", (uint64)this.delay * 1000000000);
-    queue.set_property ("max-size-time", 0);
-    queue.set_property ("max-size-bytes", 0);
-    queue.set_property ("max-size-buffers", 0);
+    this.queue    = ElementFactory.make ("queue", "queue");
+    this.queue.set_property ("max-size-time", 0);
+    this.queue.set_property ("max-size-bytes", 0);
+    this.queue.set_property ("max-size-buffers", 0);
     var sink = new ClutterGst.VideoSink (this.video_preview);
 
-    if (USE_FFMPEG_ENCODING)
-    {
-      var ffmpeg1 = ElementFactory.make ("ffmpegcolorspace", "ffmpeg1");
-      var ffmpeg2 = ElementFactory.make ("ffmpegcolorspace", "ffmpeg2");
-      var ffenc   = ElementFactory.make ("ffenc_huffyuv", "ffenc");
-      var ffdec   = ElementFactory.make ("ffdec_huffyuv", "ffdec");
+    var ffmpeg1 = ElementFactory.make ("ffmpegcolorspace", "ffmpeg1");
+    var ffmpeg2 = ElementFactory.make ("ffmpegcolorspace", "ffmpeg2");
+    var ffenc   = ElementFactory.make ("ffenc_huffyuv", "ffenc");
+    var ffdec   = ElementFactory.make ("ffdec_huffyuv", "ffdec");
 
-      var bin = new Gst.Bin ("delay_bin");
-      bin.add_many (ffmpeg1, ffenc, queue, ffdec, ffmpeg2);
-      ffmpeg1.link_many (ffenc, queue, ffdec, ffmpeg2);
+    var bin = new Gst.Bin ("delay_bin");
+    bin.add_many (ffmpeg1, ffenc, this.queue, ffdec, ffmpeg2);
+    ffmpeg1.link_many (ffenc, this.queue, ffdec, ffmpeg2);
 
-      var pad_sink   = ffmpeg1.get_static_pad ("sink");
-      var ghost_sink = new GhostPad ("sink", pad_sink);
-      bin.add_pad (ghost_sink);
+    var pad_sink   = ffmpeg1.get_static_pad ("sink");
+    var ghost_sink = new GhostPad ("sink", pad_sink);
+    bin.add_pad (ghost_sink);
 
-      var pad_src   = ffmpeg2.get_static_pad ("src");
-      var ghost_src = new GhostPad ("src", pad_src);
-      bin.add_pad (ghost_src);
+    var pad_src   = ffmpeg2.get_static_pad ("src");
+    var ghost_src = new GhostPad ("src", pad_src);
+    bin.add_pad (ghost_src);
 
-      this.pipeline.set_property ("viewfinder-filter", bin);
-    }
-    else
-    {
-      this.pipeline.set_property ("viewfinder-filter", queue);
-    }
+    this.pipeline.set_property ("viewfinder-filter", bin);
     this.pipeline.set_property ("viewfinder-sink", sink);
-
   }
 
   private void toggle_fullscreen ()
@@ -169,16 +191,55 @@ this.countdown_layer.reactive = true;
     return false;
   }
 
+  private bool on_button_release_event (Clutter.ButtonEvent event)
+  {
+    switch (event.source.name)
+    {
+      case "arrow_hour_up":
+        this.delay += 3600;
+        break;
+
+      case "arrow_hour_down":
+        this.delay -= 3600;
+        break;
+
+      case "arrow_min_up":
+        this.delay += 60;
+        break;
+
+      case "arrow_min_down":
+        this.delay -= 60;
+        break;
+
+      case "arrow_sec_up":
+        this.delay++;
+        break;
+
+      case "arrow_sec_down":
+        this.delay--;
+        break;
+
+      case "play":
+        this.play ();
+        return true;
+    }
+
+    if (this.delay < 0)
+      this.delay = 0;
+    this.set_time_from_delay ();
+    return true;
+  }
+
+  private void set_time_from_delay ()
+  {
+    this.countdown_layer.text =
+      string.join (":", "%02d".printf (this.delay / 3600), "%02d".printf (this.delay % 3600 / 60),
+                   "%02d".printf (this.delay % 60));
+  }
+
   private void do_countdown ()
   {
-    var time = Time();
-
-    var min = this.delay / 60;
-    var sec = this.delay % 60;
-    var tmp = string.join (":", min.to_string(), sec.to_string ());
-    time.strptime (tmp, "%M:%S");
-
-    this.countdown_layer.text = time.format("%M:%S");
+    this.set_time_from_delay ();
     this.delay--;
     if (this.delay < 0)
     {
@@ -191,11 +252,21 @@ this.countdown_layer.reactive = true;
     Signal.connect_after (anim, "completed", (GLib.Callback) this.do_countdown, this);
   }
 
-  private void run ()
+  private void play ()
   {
+    this.queue.set_property ("min-threshold-time", (uint64) this.delay * 1000000000);
     this.pipeline.set_state (State.PLAYING);
 
-    this.do_countdown();
+    this.play_button.reactive = false;
+    this.play_button.animate (Clutter.AnimationMode.LINEAR, 1000, "opacity", 0);
+
+    foreach (Clutter.Texture t in this.arrows)
+    {
+      t.reactive = false;
+      t.animate (Clutter.AnimationMode.LINEAR, 1000, "opacity", 0);
+    }
+
+    this.do_countdown ();
   }
 
   private void quit ()
@@ -226,8 +297,10 @@ this.countdown_layer.reactive = true;
     }
 
     delay = 0;
+    if (hours > 0)
+      delay = hours * 3600;
     if (minutes > 0)
-      delay = minutes * 60;
+      delay = delay + minutes * 60;
     if (seconds > 0)
       delay = delay + seconds;
     if (delay == 0)
@@ -238,7 +311,6 @@ this.countdown_layer.reactive = true;
     var retroscope = new Retroscope ();
     if (is_fullscreen)
       retroscope.toggle_fullscreen ();
-    retroscope.run ();
 
     Gtk.main ();
 

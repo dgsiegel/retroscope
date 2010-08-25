@@ -87,6 +87,7 @@ AC_OUTPUT([
 Makefile
 data/Makefile
 data/retroscope.desktop
+data/pixmaps/Makefile
 src/Makefile
 po/Makefile.in
 ])

@@ -22,7 +22,82 @@
   "child::y-align": "CLUTTER_BIN_ALIGNMENT_CENTER",
   "text": "",
   "font-name": "Sans 50px",
-  "color": "White"
+  "color": "White",
+  "opacity": 0
+},
+{
+  "id": "play",
+  "name": "play",
+  "type": "ClutterTexture",
+  "anchor-x": 0,
+  "anchor-y": -200,
+  "reactive": true,
+  "opacity": 0,
+  "child::x-align": "CLUTTER_BIN_ALIGNMENT_CENTER",
+  "child::y-align": "CLUTTER_BIN_ALIGNMENT_CENTER"
+},
+{
+  "id": "arrow_hour_up",
+  "name": "arrow_hour_up",
+  "type": "ClutterTexture",
+  "anchor-x": 80,
+  "anchor-y": 40,
+  "reactive": true,
+  "child::x-align": "CLUTTER_BIN_ALIGNMENT_CENTER",
+  "child::y-align": "CLUTTER_BIN_ALIGNMENT_CENTER"
+},
+{
+  "id": "arrow_hour_down",
+  "name": "arrow_hour_down",
+  "type": "ClutterTexture",
+  "anchor-x": 80,
+  "anchor-y": 50,
+  "rotation" : [{ "x-axis": 180.0 }],
+  "reactive": true,
+  "child::x-align": "CLUTTER_BIN_ALIGNMENT_CENTER",
+  "child::y-align": "CLUTTER_BIN_ALIGNMENT_CENTER"
+},
+{
+  "id": "arrow_min_up",
+  "name": "arrow_min_up",
+  "type": "ClutterTexture",
+  "anchor-x": 0,
+  "anchor-y": 40,
+  "reactive": true,
+  "child::x-align": "CLUTTER_BIN_ALIGNMENT_CENTER",
+  "child::y-align": "CLUTTER_BIN_ALIGNMENT_CENTER"
+},
+{
+  "id": "arrow_min_down",
+  "name": "arrow_min_down",
+  "type": "ClutterTexture",
+  "anchor-x": 0,
+  "anchor-y": 50,
+  "rotation" : [{ "x-axis": 180.0 }],
+  "reactive": true,
+  "child::x-align": "CLUTTER_BIN_ALIGNMENT_CENTER",
+  "child::y-align": "CLUTTER_BIN_ALIGNMENT_CENTER"
+},
+{
+  "id": "arrow_sec_up",
+  "name": "arrow_sec_up",
+  "type": "ClutterTexture",
+  "anchor-x": -80,
+  "anchor-y": 40,
+  "reactive": true,
+  "child::x-align": "CLUTTER_BIN_ALIGNMENT_CENTER",
+  "child::y-align": "CLUTTER_BIN_ALIGNMENT_CENTER"
+},
+{
+  "id": "arrow_sec_down",
+  "name": "arrow_sec_down",
+  "type": "ClutterTexture",
+  "anchor-x": -80,
+  "anchor-y": 50,
+  "rotation" : [{ "x-axis": 180.0 }],
+  "reactive": true,
+  "child::x-align": "CLUTTER_BIN_ALIGNMENT_CENTER",
+  "child::y-align": "CLUTTER_BIN_ALIGNMENT_CENTER"
 },
 {
   "id": "viewport_layout",
@@ -30,7 +105,14 @@
   "children":
   [
     'video_preview',
-    'countdown_layer'
+    'countdown_layer',
+    'play',
+    'arrow_hour_up',
+    'arrow_hour_down',
+    'arrow_min_up',
+    'arrow_min_down',
+    'arrow_sec_up',
+    'arrow_sec_down'
   ]
 },
 {

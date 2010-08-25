@@ -1,3 +1,5 @@
+SUBDIRS = pixmaps
+
 @INTLTOOL_DESKTOP_RULE@
 desktopdir = $(datadir)/applications
 desktop_in_files = retroscope.desktop.in
