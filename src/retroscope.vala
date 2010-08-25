@@ -86,13 +86,10 @@ public class Retroscope : Gtk.Window
       (Clutter.Texture)clutter_builder.get_object ("arrow_sec_down")
     };
 
-    video_preview.keep_aspect_ratio = true;
-    video_preview.request_mode      = Clutter.RequestMode.HEIGHT_FOR_WIDTH;
     this.stage.add_actor (this.background_layer);
     this.stage.add_actor (this.viewport_layout);
     viewport_layout.set_layout_manager (this.viewport_layout_manager);
     this.set_time_from_delay ();
-
 
     try
     {

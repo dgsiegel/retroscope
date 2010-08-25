@@ -2,6 +2,7 @@
 {
   "id": "video_preview",
   "type": "ClutterTexture",
+  "keep-aspect-ratio": true,
   "child::x-align": "CLUTTER_BIN_ALIGNMENT_CENTER",
   "child::y-align": "CLUTTER_BIN_ALIGNMENT_CENTER",
   "opacity": 0
