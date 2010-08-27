@@ -379,26 +379,32 @@ public class Retroscope : Gtk.Window
     switch (event.source.name)
     {
       case "arrow_hour_up":
+        highlight_button (this.Buttons.HOUR_UP);
         this.delay += 3600;
         break;
 
       case "arrow_hour_down":
+        highlight_button (this.Buttons.HOUR_DOWN);
         this.delay -= 3600;
         break;
 
       case "arrow_min_up":
+        highlight_button (this.Buttons.MIN_UP);
         this.delay += 60;
         break;
 
       case "arrow_min_down":
+        highlight_button (this.Buttons.MIN_DOWN);
         this.delay -= 60;
         break;
 
       case "arrow_sec_up":
+        highlight_button (this.Buttons.SEC_UP);
         this.delay++;
         break;
 
       case "arrow_sec_down":
+        highlight_button (this.Buttons.SEC_DOWN);
         this.delay--;
         break;
 
