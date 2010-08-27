@@ -32,8 +32,8 @@ const int BUTTON_ACTIVE = 255;
 
 public class Retroscope : Gtk.Window
 {
-  private Element                  pipeline;
-  private Element                  queue;
+  private Gst.Element              pipeline;
+  private Gst.Element              queue;
   private static bool              is_fullscreen;
   private static int               hours;
   private static int               minutes;
@@ -59,11 +59,11 @@ public class Retroscope : Gtk.Window
     SEC_DOWN
   }
 
-  const OptionEntry[] options = {
-    {"fullscreen", 'f',    0,   OptionArg.NONE, ref is_fullscreen, "Start in fullscreen",    null          },
-    {"hours",      0,      0,   OptionArg.INT,  ref hours,         "Delay in hours",         "HOURS"       },
-    {"minutes",    'm',    0,   OptionArg.INT,  ref minutes,       "Delay in minutes",       "MINUTES"     },
-    {"seconds",    's',    0,   OptionArg.INT,  ref seconds,       "Delay in seconds",       "SECONDS"     },
+  const GLib.OptionEntry[] options = {
+    {"fullscreen", 'f',    0,   GLib.OptionArg.NONE, ref is_fullscreen, "Start in fullscreen",    null     },
+    {"hours",      0,      0,   GLib.OptionArg.INT,  ref hours,         "Delay in hours",         "HOURS"  },
+    {"minutes",    'm',    0,   GLib.OptionArg.INT,  ref minutes,       "Delay in minutes",       "MINUTES"},
+    {"seconds",    's',    0,   GLib.OptionArg.INT,  ref seconds,       "Delay in seconds",       "SECONDS"},
     {null}
   };
 
@@ -76,7 +76,7 @@ public class Retroscope : Gtk.Window
     {
       clutter_builder.load_from_file (GLib.Path.build_filename (Config.PACKAGE_DATADIR, "viewport.json"));
     }
-    catch (Error err)
+    catch (GLib.Error err)
     {
       error ("Error: %s", err.message);
     }
@@ -85,19 +85,19 @@ public class Retroscope : Gtk.Window
     this.stage = viewport.get_stage ().get_stage ();
     this.stage.allocation_changed.connect (on_stage_resize);
 
-    this.video_preview           = (Clutter.Texture)clutter_builder.get_object ("video_preview");
-    this.viewport_layout         = (Clutter.Box)clutter_builder.get_object ("viewport_layout");
-    this.viewport_layout_manager = (Clutter.BinLayout)clutter_builder.get_object ("viewport_layout_manager");
-    this.countdown_layer         = (Clutter.Text)clutter_builder.get_object ("countdown_layer");
-    this.background_layer        = (Clutter.Rectangle)clutter_builder.get_object ("background");
+    this.video_preview           = (Clutter.Texture) clutter_builder.get_object ("video_preview");
+    this.viewport_layout         = (Clutter.Box) clutter_builder.get_object ("viewport_layout");
+    this.viewport_layout_manager = (Clutter.BinLayout) clutter_builder.get_object ("viewport_layout_manager");
+    this.countdown_layer         = (Clutter.Text) clutter_builder.get_object ("countdown_layer");
+    this.background_layer        = (Clutter.Rectangle) clutter_builder.get_object ("background");
     this.arrows                  = {
-      (Clutter.Texture)clutter_builder.get_object ("play"),
-      (Clutter.Texture)clutter_builder.get_object ("arrow_hour_up"),
-      (Clutter.Texture)clutter_builder.get_object ("arrow_hour_down"),
-      (Clutter.Texture)clutter_builder.get_object ("arrow_min_up"),
-      (Clutter.Texture)clutter_builder.get_object ("arrow_min_down"),
-      (Clutter.Texture)clutter_builder.get_object ("arrow_sec_up"),
-      (Clutter.Texture)clutter_builder.get_object ("arrow_sec_down")
+      (Clutter.Texture) clutter_builder.get_object ("play"),
+      (Clutter.Texture) clutter_builder.get_object ("arrow_hour_up"),
+      (Clutter.Texture) clutter_builder.get_object ("arrow_hour_down"),
+      (Clutter.Texture) clutter_builder.get_object ("arrow_min_up"),
+      (Clutter.Texture) clutter_builder.get_object ("arrow_min_down"),
+      (Clutter.Texture) clutter_builder.get_object ("arrow_sec_up"),
+      (Clutter.Texture) clutter_builder.get_object ("arrow_sec_down")
     };
 
     this.stage.add_actor (this.background_layer);
@@ -117,7 +117,7 @@ public class Retroscope : Gtk.Window
       this.arrows[this.Buttons.PLAY].animate (Clutter.AnimationMode.LINEAR, 2000, "opacity", BUTTON_ACTIVE);
       this.selected_button = this.Buttons.PLAY;
     }
-    catch (Error err)
+    catch (GLib.Error err)
     {
       error ("Error: %s", err.message);
     }
@@ -125,11 +125,11 @@ public class Retroscope : Gtk.Window
     this.set_size_request (WIDTH, HEIGHT);
     this.set_title ("Retroscope");
     this.set_icon_name ("forward");
-    this.set_position (WindowPosition.CENTER);
+    this.set_position (Gtk.WindowPosition.CENTER);
     this.destroy.connect (this.on_quit);
     this.key_press_event.connect (this.on_key_press_event);
 
-    var vbox = new VBox (false, 0);
+    var vbox = new Gtk.VBox (false, 0);
     vbox.pack_start (viewport, true, true, 0);
 
     this.add (vbox);
@@ -146,28 +146,28 @@ public class Retroscope : Gtk.Window
 
   private void create_pipeline ()
   {
-    this.pipeline = ElementFactory.make ("camerabin", "video");
-    this.queue    = ElementFactory.make ("queue", "queue");
+    this.pipeline = Gst.ElementFactory.make ("camerabin", "video");
+    this.queue    = Gst.ElementFactory.make ("queue", "queue");
     this.queue.set_property ("max-size-time", 0);
     this.queue.set_property ("max-size-bytes", 0);
     this.queue.set_property ("max-size-buffers", 0);
     var sink = new ClutterGst.VideoSink (this.video_preview);
 
-    var ffmpeg1 = ElementFactory.make ("ffmpegcolorspace", "ffmpeg1");
-    var ffmpeg2 = ElementFactory.make ("ffmpegcolorspace", "ffmpeg2");
-    var ffenc   = ElementFactory.make ("ffenc_huffyuv", "ffenc");
-    var ffdec   = ElementFactory.make ("ffdec_huffyuv", "ffdec");
+    var ffmpeg1 = Gst.ElementFactory.make ("ffmpegcolorspace", "ffmpeg1");
+    var ffmpeg2 = Gst.ElementFactory.make ("ffmpegcolorspace", "ffmpeg2");
+    var ffenc   = Gst.ElementFactory.make ("ffenc_huffyuv", "ffenc");
+    var ffdec   = Gst.ElementFactory.make ("ffdec_huffyuv", "ffdec");
 
     var bin = new Gst.Bin ("delay_bin");
     bin.add_many (ffmpeg1, ffenc, this.queue, ffdec, ffmpeg2);
     ffmpeg1.link_many (ffenc, this.queue, ffdec, ffmpeg2);
 
     var pad_sink   = ffmpeg1.get_static_pad ("sink");
-    var ghost_sink = new GhostPad ("sink", pad_sink);
+    var ghost_sink = new Gst.GhostPad ("sink", pad_sink);
     bin.add_pad (ghost_sink);
 
     var pad_src   = ffmpeg2.get_static_pad ("src");
-    var ghost_src = new GhostPad ("src", pad_src);
+    var ghost_src = new Gst.GhostPad ("src", pad_src);
     bin.add_pad (ghost_src);
 
     this.pipeline.set_property ("viewfinder-filter", bin);
@@ -210,7 +210,7 @@ public class Retroscope : Gtk.Window
   private void play ()
   {
     this.queue.set_property ("min-threshold-time", (uint64) this.delay * 1000000000);
-    this.pipeline.set_state (State.PLAYING);
+    this.pipeline.set_state (Gst.State.PLAYING);
 
     foreach (Clutter.Texture t in this.arrows)
     {
@@ -241,7 +241,7 @@ public class Retroscope : Gtk.Window
 
   private void on_quit ()
   {
-    this.pipeline.set_state (State.NULL);
+    this.pipeline.set_state (Gst.State.NULL);
     Gtk.main_quit ();
   }
 
@@ -423,7 +423,7 @@ public class Retroscope : Gtk.Window
     Clutter.init (ref args);
 
     try {
-      var context = new OptionContext ("- The Retroscope. Default delay is 10 seconds.");
+      var context = new GLib.OptionContext ("- The Retroscope. Default delay is 10 seconds.");
       context.set_help_enabled (true);
       context.add_main_entries (options, null);
       context.add_group (Gtk.get_option_group (true));
@@ -431,9 +431,9 @@ public class Retroscope : Gtk.Window
       context.add_group (Clutter.get_option_group ());
       context.parse (ref args);
     }
-    catch (OptionError e)
+    catch (GLib.OptionError err)
     {
-      stdout.printf ("%s\n", e.message);
+      stdout.printf ("%s\n", err.message);
       stdout.printf ("Run '%s --help' to see a full list of available command line options.\n", args[0]);
       return 1;
     }
