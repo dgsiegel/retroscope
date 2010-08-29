@@ -86,7 +86,6 @@ AC_SUBST(GLIB_MKENUMS)
 AC_OUTPUT([
 Makefile
 data/Makefile
-data/retroscope.desktop
 data/pixmaps/Makefile
 src/Makefile
 po/Makefile.in
