@@ -419,8 +419,7 @@ public class Retroscope : Gtk.Window
 
   public static int main (string[] args)
   {
-    Gtk.init (ref args);
-    Clutter.init (ref args);
+    GtkClutter.init (ref args);
 
     try {
       var context = new GLib.OptionContext ("- The Retroscope. Default delay is 10 seconds.");
