@@ -2,13 +2,12 @@ VALAFLAGS = \
 	--thread \
 	--vapidir vapi \
 	--pkg config \
-	--pkg gtk+-2.0 \
-	--pkg gdk-x11-2.0 \
+	--pkg gtk+-3.0 \
 	--pkg gmodule-2.0 \
 	--pkg gee-1.0 \
 	--pkg clutter-1.0 \
 	--pkg clutter-gst-1.0 \
-	--pkg clutter-gtk-0.10 \
+	--pkg clutter-gtk-1.0 \
 	--pkg gstreamer-0.10 \
 	--pkg gstreamer-interfaces-0.10
 
